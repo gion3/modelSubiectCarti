@@ -1,8 +1,11 @@
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,7 +37,48 @@ public class Main {
                 .sorted((entry1, entry2) -> Integer.compare(entry2.getValue(), entry1.getValue()))
                 .collect(Collectors.toList());
         sortedList.forEach(System.out::println);
+        //scriere json
+        scriereJSON("carti.json", carti);
+        //scriere in db
+        List<Imprumut> imprumuturi2 = new ArrayList<>();
+        Imprumut i1 = new Imprumut("Ionel Ionescu", "COTAMEALACHE",69);
+        Imprumut i2 = new Imprumut("Fane Vancica", "COTA20",420);
+        Imprumut i3 = new Imprumut("MAMATATA", "FARACOTA",1);
+        imprumuturi2.add(i1);
+        imprumuturi2.add(i2);
+        imprumuturi2.add(i3);
 
+        scriereDB("biblioteca.db",imprumuturi2);
+    }
+    public static void scriereJSON(String filePath, List<Carte> carti) throws IOException {
+        JSONArray jsonCarti = new JSONArray();
+
+        for(Carte c : carti){
+            JSONObject jsonCarte = new JSONObject();
+            jsonCarte.put("Cota carte", c.getCota());
+            jsonCarte.put("Titlu",c.getTitlu());
+            jsonCarte.put("Autor", c.getAutor());
+            jsonCarte.put("Anul aparitiei", c.getAnAparitie());
+            jsonCarti.put(jsonCarte);
+        }
+
+        String jsonString = jsonCarti.toString();
+        Files.writeString(Paths.get(filePath),jsonString, StandardOpenOption.CREATE);
+    }
+
+    public static void scriereDB(String dbPath, List<Imprumut> imprumuturi) throws ClassNotFoundException, SQLException {
+        Class.forName("org.sqlite.JDBC");
+        Connection con = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        try(PreparedStatement st = con.prepareStatement("INSERT INTO imprumuturi VALUES (?,?,?)")){
+            for(Imprumut i : imprumuturi){
+                st.setString(1,i.getNumeCititor());
+                st.setString(2,i.getCotaCarte());
+                st.setInt(3,i.getNrZileImprumut());
+                st.addBatch();
+            }
+            st.executeBatch();
+        }
+        con.close();
     }
     public static void scriereTxt(String filePath) throws Exception{
         try(Connection con = DriverManager.getConnection("jdbc:sqlite:biblioteca.db")){
